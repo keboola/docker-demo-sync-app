@@ -2,13 +2,13 @@ version: '2'
 services:
   app:
     build: .
-    image: keboola/docker-demo-app-sync
+    image: keboola/docker-demo-sync-app
     tty: true
     stdin_open: true
     command: /bin/bash
 
   dev:
-    image: keboola/docker-demo-app-sync
+    image: keboola/docker-demo-sync-app
     command: /code/tests/run.sh
     volumes:
       - ./:/code
