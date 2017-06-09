@@ -1,0 +1,14 @@
+version: '2'
+services:
+  app:
+    build: .
+    image: keboola/docker-demo-app-sync
+    tty: true
+    stdin_open: true
+    command: /bin/bash
+
+  dev:
+    image: keboola/docker-demo-app-sync
+    command: /code/tests/run.sh
+    volumes:
+      - ./:/code
