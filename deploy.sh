@@ -11,6 +11,12 @@ docker push $REPOSITORY:latest
 
 # deploy to testing AWS account
 # needs AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY envvars
+
+# install aws cli w/o sudo
+pip install --user awscli
+# put aws in the path
+export PATH=$PATH:$HOME/.local/bin
+
 eval $(aws ecr get-login --region us-east-1)
 docker tag keboola/docker-demo-sync-app:latest 061240556736.dkr.ecr.us-east-1.amazonaws.com/keboola/keboola.docker-demo-sync:$TRAVIS_TAG
 docker tag keboola/docker-demo-sync-app:latest 061240556736.dkr.ecr.us-east-1.amazonaws.com/keboola/keboola.docker-demo-sync:latest
