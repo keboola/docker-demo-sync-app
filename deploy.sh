@@ -1,24 +1,34 @@
 #!/bin/bash
+set -e
 
-# needs KBC_DEVELOPERPORTAL_USERNAME, KBC_DEVELOPERPORTAL_PASSWORD and KBC_DEVELOPERPORTAL_URL
-docker pull quay.io/keboola/developer-portal-cli-v2:0.0.1
-export REPOSITORY=`docker run --rm  -e KBC_DEVELOPERPORTAL_USERNAME=$KBC_DEVELOPERPORTAL_USERNAME -e KBC_DEVELOPERPORTAL_PASSWORD=$KBC_DEVELOPERPORTAL_PASSWORD -e KBC_DEVELOPERPORTAL_URL=$KBC_DEVELOPERPORTAL_URL quay.io/keboola/developer-portal-cli-v2:0.0.1 ecr:get-repository keboola keboola.docker-demo-sync`
-docker tag keboola/docker-demo-sync-app:latest $REPOSITORY:$TRAVIS_TAG
-docker tag keboola/docker-demo-sync-app:latest $REPOSITORY:latest
-eval $(docker run --rm -e KBC_DEVELOPERPORTAL_USERNAME=$KBC_DEVELOPERPORTAL_USERNAME -e KBC_DEVELOPERPORTAL_PASSWORD=$KBC_DEVELOPERPORTAL_PASSWORD -e KBC_DEVELOPERPORTAL_URL=$KBC_DEVELOPERPORTAL_URL quay.io/keboola/developer-portal-cli-v2:0.0.1 ecr:get-login keboola keboola.docker-demo-sync)
-docker push $REPOSITORY:$TRAVIS_TAG
-docker push $REPOSITORY:latest
+# Obtain the component repository and log in
+docker pull quay.io/keboola/developer-portal-cli-v2:latest
+export REPOSITORY=`docker run --rm  \
+    -e KBC_DEVELOPERPORTAL_USERNAME \
+    -e KBC_DEVELOPERPORTAL_PASSWORD \
+    quay.io/keboola/developer-portal-cli-v2:latest \
+    ecr:get-repository ${KBC_DEVELOPERPORTAL_VENDOR} ${KBC_DEVELOPERPORTAL_APP}`
 
-# deploy to testing AWS account
-# needs AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY envvars
+eval $(docker run --rm \
+    -e KBC_DEVELOPERPORTAL_USERNAME \
+    -e KBC_DEVELOPERPORTAL_PASSWORD \
+    quay.io/keboola/developer-portal-cli-v2:latest \
+    ecr:get-login ${KBC_DEVELOPERPORTAL_VENDOR} ${KBC_DEVELOPERPORTAL_APP})
 
-# install aws cli w/o sudo
-pip install --user awscli
-# put aws in the path
-export PATH=$PATH:$HOME/.local/bin
+# Push to the repository
+docker tag ${APP_IMAGE}:latest ${REPOSITORY}:${TRAVIS_TAG}
+docker tag ${APP_IMAGE}:latest ${REPOSITORY}:latest
+docker push ${REPOSITORY}:${TRAVIS_TAG}
+docker push ${REPOSITORY}:latest
 
-eval $(aws ecr get-login --region us-east-1)
-docker tag keboola/docker-demo-sync-app:latest 061240556736.dkr.ecr.us-east-1.amazonaws.com/keboola/keboola.docker-demo-sync:$TRAVIS_TAG
-docker tag keboola/docker-demo-sync-app:latest 061240556736.dkr.ecr.us-east-1.amazonaws.com/keboola/keboola.docker-demo-sync:latest
-docker push 061240556736.dkr.ecr.us-east-1.amazonaws.com/keboola/keboola.docker-demo-sync:$TRAVIS_TAG
-docker push 061240556736.dkr.ecr.us-east-1.amazonaws.com/keboola/keboola.docker-demo-sync:latest
+# Update the tag in Keboola Developer Portal -> Deploy to KBC
+if echo ${TRAVIS_TAG} | grep -c '^v\?[0-9]\+\.[0-9]\+\.[0-9]\+$'
+then
+    docker run --rm \
+        -e KBC_DEVELOPERPORTAL_USERNAME \
+        -e KBC_DEVELOPERPORTAL_PASSWORD \
+        quay.io/keboola/developer-portal-cli-v2:latest \
+        update-app-repository ${KBC_DEVELOPERPORTAL_VENDOR} ${KBC_DEVELOPERPORTAL_APP} ${TRAVIS_TAG} ecr ${REPOSITORY}
+else
+    echo "Skipping deployment to KBC, tag ${TRAVIS_TAG} is not allowed."
+fi
